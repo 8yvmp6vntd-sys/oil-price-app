@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>92号油价实时查询</title>
+<style>
+  :root {
+    --primary: #E8453C;
+    --primary-dark: #C63028;
+    --primary-light: #FF6B5E;
+    --bg: #F5F6FA;
+    --card: #FFFFFF;
+    --text: #1A1A2E;
+    --text-secondary: #6B7280;
+    --border: #E5E7EB;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 20px 20px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -10%;
+    width: 150px;
+    height: 150px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+  }
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .header-date {
+    font-size: 12px;
+    opacity: 0.85;
+    background: rgba(255,255,255,0.15);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  .trend-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.2);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
+    margin-bottom: 4px;
+  }
+  .trend-badge.up { background: rgba(239,68,68,0.25); }
+  .trend-arrow { font-size: 16px; }
+  .trend-detail {
+    font-size: 12px;
+    opacity: 0.8;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Search */
+  .search-bar {
+    padding: 16px 20px 8px;
+  }
+  .search-input {
+    width: 100%;
+    padding: 12px 16px 12px 42px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    font-size: 15px;
+    background: var(--card);
+    outline: none;
+    transition: border-color 0.2s;
+    color: var(--text);
+  }
+  .search-input:focus { border-color: var(--primary); }
+  .search-wrapper {
+    position: relative;
+  }
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: 16px;
+  }
+
+  /* City Select */
+  .city-select-section {
+    padding: 8px 20px 16px;
+  }
+  .section-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  .city-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .city-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .city-chip:hover { border-color: var(--primary); color: var(--primary); }
+  .city-chip.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    font-weight: 600;
+  }
+
+  /* Price Cards */
+  .price-cards {
+    padding: 0 20px 20px;
+  }
+  .price-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .price-card.main {
+    background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+    border: 1.5px solid rgba(232,69,60,0.15);
+  }
+  .price-card.main .fuel-type { color: var(--primary); }
+  .price-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .fuel-type {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .fuel-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #FEF3C7;
+    color: #92400E;
+    font-weight: 500;
+  }
+  .price-main {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .price-value {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+  }
+  .price-unit {
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .price-change {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 8px;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .price-change.up { color: var(--danger); background: #FEE2E2; }
+  .price-change.down { color: var(--success); background: #D1FAE5; }
+
+  /* Other fuels grid */
+  .other-fuels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .other-fuel-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .other-fuel-type {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .other-fuel-price {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .other-fuel-unit {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  /* Cost Calculator */
+  .calculator {
+    padding: 0 20px 20px;
+  }
+  .calc-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .calc-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .calc-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .calc-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-width: 70px;
+  }
+  .calc-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--val, 50%), var(--border) var(--val, 50%), var(--border) 100%);
+    outline: none;
+  }
+  .calc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(232,69,60,0.3);
+  }
+  .calc-display {
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 40px;
+    text-align: right;
+    color: var(--text);
+  }
+  .calc-result {
+    background: linear-gradient(135deg, #FFF7ED 0%, #FFFBEB 100%);
+    border: 1.5px solid #FDE68A;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .calc-result-label {
+    font-size: 12px;
+    color: #92400E;
+    margin-bottom: 4px;
+  }
+  .calc-result-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary-dark);
+  }
+  .calc-result-unit {
+    font-size: 13px;
+    color: #92400E;
+  }
+
+  /* Next Adjustment */
+  .next-adjust {
+    padding: 0 20px 20px;
+  }
+  .adjust-card {
+    background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%);
+    border: 1.5px solid #BFDBFE;
+    border-radius: 16px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .adjust-icon {
+    font-size: 36px;
+    flex-shrink: 0;
+  }
+  .adjust-info { flex: 1; }
+  .adjust-label {
+    font-size: 13px;
+    color: #1E40AF;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .adjust-date {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .adjust-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+  .countdown {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .countdown-item {
+    background: white;
+    border-radius: 8px;
+    padding: 6px 10px;
+    text-align: center;
+    min-width: 42px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .countdown-num {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .countdown-text {
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  /* Province List */
+  .province-list {
+    padding: 0 20px 20px;
+  }
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .list-title {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .list-sort {
+    font-size: 12px;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .province-item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .province-item:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .province-item.active { border-left: 3px solid var(--primary); }
+  .province-name {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .province-name-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+  .province-price {
+    text-align: right;
+  }
+  .province-price-92 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .province-price-unit {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .province-price-change {
+    font-size: 11px;
+    margin-top: 2px;
+    font-weight: 600;
+  }
+  .province-price-change.up { color: var(--danger); }
+  .province-price-change.down { color: var(--success); }
+
+  /* Stats Bar */
+  .stats-bar {
+    padding: 0 20px 20px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .stat-item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .stat-value.high { color: var(--danger); }
+  .stat-value.low { color: var(--success); }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  /* Tips */
+  .tips-section {
+    padding: 0 20px 30px;
+  }
+  .tips-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .tips-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .tip-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    align-items: flex-start;
+  }
+  .tip-item:last-child { margin-bottom: 0; }
+  .tip-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .tip-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+  }
+
+  /* Animations */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in { animation: fadeInUp 0.4s ease-out forwards; }
+  .delay-1 { animation-delay: 0.05s; opacity: 0; }
+  .delay-2 { animation-delay: 0.1s; opacity: 0; }
+  .delay-3 { animation-delay: 0.15s; opacity: 0; }
+  .delay-4 { animation-delay: 0.2s; opacity: 0; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    background: #22C55E;
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 2s ease-in-out infinite;
+    margin-right: 4px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-top">
+    <div class="header-title">⛽ 油价实时查询</div>
+    <div class="header-date" id="headerDate"></div>
+  </div>
+  <div class="trend-badge up">
+    <span class="trend-arrow">↑</span>
+    <span>油价上调</span>
+  </div>
+  <div class="trend-detail">汽油 +300元/吨 | 92号每升涨约0.24元</div>
+</div>
+
+<!-- Search -->
+<div class="search-bar">
+  <div class="search-wrapper">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="search-input" id="searchInput" placeholder="搜索省份/城市..." oninput="filterProvinces()">
+  </div>
+</div>
+
+<!-- Quick City Select -->
+<div class="city-select-section">
+  <div class="section-label"><span class="live-dot"></span>热门城市</div>
+  <div class="city-chips" id="cityChips"></div>
+</div>
+
+<!-- Stats -->
+<div class="stats-bar animate-in delay-1" id="statsBar">
+  <div class="stats-grid" id="statsGrid"></div>
+</div>
+
+<!-- Main 92# Price Card -->
+<div class="price-cards animate-in delay-2">
+  <div class="price-card main">
+    <div class="price-card-header">
+      <div class="fuel-type">92号汽油</div>
+      <div class="fuel-badge">当前选中</div>
+    </div>
+    <div class="price-main">
+      <span class="price-value" id="mainPrice">7.42</span>
+      <span class="price-unit">元/升</span>
+    </div>
+    <div class="price-change up">
+      <span>↑</span>
+      <span>较上轮 +0.24 元/升</span>
+    </div>
+  </div>
+</div>
+
+<!-- Other Fuels -->
+<div class="price-cards animate-in delay-3">
+  <div class="other-fuels" id="otherFuels"></div>
+</div>
+
+<!-- Calculator -->
+<div class="calculator animate-in delay-3">
+  <div class="calc-card">
+    <div class="calc-title">🧮 加油费用计算</div>
+    <div class="calc-row">
+      <span class="calc-label">加油量</span>
+      <input type="range" class="calc-slider" id="literSlider" min="10" max="80" value="50" step="1" oninput="updateCalc()">
+      <span class="calc-display" id="literDisplay">50L</span>
+    </div>
+    <div class="calc-row">
+      <span class="calc-label">油品</span>
+      <div class="city-chips" style="gap:6px">
+        <span class="city-chip active" data-fuel="92" onclick="selectFuel(this)">92号</span>
+        <span class="city-chip" data-fuel="95" onclick="selectFuel(this)">95号</span>
+        <span class="city-chip" data-fuel="98" onclick="selectFuel(this)">98号</span>
+        <span class="city-chip" data-fuel="0d" onclick="selectFuel(this)">0号柴油</span>
+      </div>
+    </div>
+    <div class="calc-result">
+      <div class="calc-result-label">预估加油费用</div>
+      <div class="calc-result-value" id="calcResult">371.00</div>
+      <div class="calc-result-unit">元（以当前城市油价计算）</div>
+    </div>
+  </div>
+</div>
+
+<!-- Next Adjustment -->
+<div class="next-adjust animate-in delay-4">
+  <div class="adjust-card">
+    <div class="adjust-icon">📅</div>
+    <div class="adjust-info">
+      <div class="adjust-label">下轮调价时间</div>
+      <div class="adjust-date">7月31日 24时</div>
+      <div class="adjust-sub">2026年第15次油价调整</div>
+      <div class="countdown" id="countdown"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Province List -->
+<div class="province-list animate-in delay-4">
+  <div class="list-header">
+    <div class="list-title">全国油价一览</div>
+    <div class="list-sort" id="sortBtn" onclick="toggleSort()">按价格排序 ↑</div>
+  </div>
+  <div id="provinceList"></div>
+</div>
+
+<!-- Tips -->
+<div class="tips-section animate-in delay-4">
+  <div class="tips-card">
+    <div class="tips-title">💡 省油小技巧</div>
+    <div class="tip-item">
+      <div class="tip-num">1</div>
+      <div class="tip-text">油箱剩1/4时加油即可，长期满油会增加车身重量</div>
+    </div>
+    <div class="tip-item">
+      <div class="tip-num">2</div>
+      <div class="tip-text">早晚气温低时加油，同等金额可加入更多燃油</div>
+    </div>
+    <div class="tip-item">
+      <div class="tip-num">3</div>
+      <div class="tip-text">城市道路保持60-80km/h匀速行驶，减少急加速急刹车</div>
+    </div>
+    <div class="tip-item">
+      <div class="tip-num">4</div>
+      <div class="tip-text">定期检查轮胎气压，气压不足会增加行驶阻力</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  数据来源：国家发改委 | 仅供参考，以加油站实际挂牌价为准<br>
+  更新时间：2026年7月18日
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const oilData = [
+  { province: "北京", p92: 7.42, p95: 7.89, p98: 9.14, d0: 7.16, change: +0.24, region: "华北" },
+  { province: "天津", p92: 7.41, p95: 7.82, p98: 9.32, d0: 7.07, change: +0.24, region: "华北" },
+  { province: "河北", p92: 7.41, p95: 7.82, p98: 9.02, d0: 7.07, change: +0.24, region: "华北" },
+  { province: "山西", p92: 7.37, p95: 7.95, p98: 9.13, d0: 7.14, change: +0.24, region: "华北" },
+  { province: "内蒙古", p92: 7.36, p95: 7.89, p98: 9.01, d0: 7.03, change: +0.24, region: "华北" },
+  { province: "辽宁", p92: 7.47, p95: 7.97, p98: 8.71, d0: 6.97, change: +0.24, region: "东北" },
+  { province: "吉林", p92: 7.38, p95: 7.95, p98: 8.95, d0: 6.99, change: +0.24, region: "东北" },
+  { province: "黑龙江", p92: 7.47, p95: 7.93, p98: 9.13, d0: 7.15, change: +0.24, region: "东北" },
+  { province: "上海", p92: 7.38, p95: 7.85, p98: 9.85, d0: 7.05, change: +0.24, region: "华东" },
+  { province: "江苏", p92: 7.39, p95: 7.86, p98: 9.07, d0: 7.05, change: +0.24, region: "华东" },
+  { province: "浙江", p92: 7.39, p95: 7.86, p98: 9.86, d0: 7.06, change: +0.24, region: "华东" },
+  { province: "安徽", p92: 7.37, p95: 7.84, p98: 9.33, d0: 7.07, change: +0.24, region: "华东" },
+  { province: "福建", p92: 7.38, p95: 7.87, p98: 9.30, d0: 7.07, change: +0.24, region: "华东" },
+  { province: "江西", p92: 7.38, p95: 7.91, d0: 7.11, p98: 8.51, change: +0.24, region: "华东" },
+  { province: "山东", p92: 7.38, p95: 7.89, p98: 9.08, d0: 7.05, change: +0.24, region: "华东" },
+  { province: "河南", p92: 7.42, p95: 7.92, p98: 9.17, d0: 7.06, change: +0.24, region: "华中" },
+  { province: "湖北", p92: 7.43, p95: 7.93, p98: 9.35, d0: 7.14, change: +0.24, region: "华中" },
+  { province: "湖南", p92: 7.43, p95: 7.93, p98: 9.36, d0: 7.15, change: +0.24, region: "华中" },
+  { province: "广东", p92: 7.44, p95: 7.90, p98: 9.33, d0: 7.12, change: +0.24, region: "华南" },
+  { province: "广西", p92: 7.44, p95: 7.91, p98: 9.34, d0: 7.13, change: +0.24, region: "华南" },
+  { province: "海南", p92: 7.56, p95: 8.04, p98: 9.49, d0: 7.26, change: +0.24, region: "华南" },
+  { province: "重庆", p92: 7.46, p95: 7.92, p98: 9.37, d0: 7.17, change: +0.24, region: "西南" },
+  { province: "四川", p92: 7.46, p95: 7.93, p98: 9.13, d0: 7.13, change: +0.24, region: "西南" },
+  { province: "贵州", p92: 7.48, p95: 7.94, p98: 9.39, d0: 7.18, change: +0.24, region: "西南" },
+  { province: "云南", p92: 7.44, p95: 7.95, p98: 9.35, d0: 7.15, change: +0.24, region: "西南" },
+  { province: "西藏", p92: 7.49, p95: 7.96, p98: 9.41, d0: 7.20, change: +0.24, region: "西南" },
+  { province: "陕西", p92: 7.33, p95: 7.78, p98: 9.35, d0: 7.03, change: +0.24, region: "西北" },
+  { province: "甘肃", p92: 7.40, p95: 7.86, p98: 9.28, d0: 7.07, change: +0.24, region: "西北" },
+  { province: "青海", p92: 7.22, p95: 7.68, p98: 9.12, d0: 6.93, change: +0.24, region: "西北" },
+  { province: "宁夏", p92: 7.32, p95: 7.74, p98: 9.01, d0: 6.99, change: +0.24, region: "西北" },
+  { province: "新疆", p92: 7.47, p95: 7.92, p98: 9.36, d0: 7.14, change: +0.24, region: "西北" },
+];
+
+const cityMap = {
+  "武汉":"湖北","成都":"四川","重庆":"重庆","杭州":"浙江","南京":"江苏",
+  "广州":"广东","深圳":"广东","长沙":"湖南","郑州":"河南","济南":"山东",
+  "青岛":"山东","福州":"福建","厦门":"福建","合肥":"安徽","南昌":"江西",
+  "石家庄":"河北","太原":"山西","沈阳":"辽宁","大连":"辽宁","长春":"吉林",
+  "哈尔滨":"黑龙江","南宁":"广西","海口":"海南","三亚":"海南","昆明":"云南",
+  "贵阳":"贵州","拉萨":"西藏","西安":"陕西","兰州":"甘肃","西宁":"青海",
+  "银川":"宁夏","乌鲁木齐":"新疆","呼和浩特":"内蒙古","北京":"北京",
+  "天津":"天津","上海":"上海",
+};
+
+const hotCities = ["北京", "上海", "广东", "浙江", "江苏", "四川", "山东", "河南"];
+let selectedCity = "北京";
+let selectedFuel = "92";
+let sortAsc = true;
+
+function init() {
+  // Date
+  const now = new Date();
+  const months = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+  const weekDays = ["周日","周一","周二","周三","周四","周五","周六"];
+  document.getElementById('headerDate').textContent = 
+    `${months[now.getMonth()]}${now.getDate()}日 ${weekDays[now.getDay()]}`;
+
+  renderCityChips();
+  renderStats();
+  renderOtherFuels();
+  renderProvinceList();
+  updateCalc();
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+}
+
+function renderCityChips() {
+  const container = document.getElementById('cityChips');
+  container.innerHTML = hotCities.map(c => 
+    `<span class="city-chip ${c === selectedCity ? 'active' : ''}" onclick="selectCity('${c}')">${c}</span>`
+  ).join('');
+}
+
+function selectCity(city) {
+  selectedCity = city;
+  renderCityChips();
+  updateCityDisplay();
+  updateCalc();
+  showToast(`已切换到 ${city}`);
+}
+
+function updateCityDisplay() {
+  const data = oilData.find(d => d.province === selectedCity);
+  if (!data) return;
+  document.getElementById('mainPrice').textContent = data.p92.toFixed(2);
+  renderOtherFuels();
+  // Highlight in list
+  document.querySelectorAll('.province-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.province === selectedCity);
+  });
+}
+
+function renderStats() {
+  const prices = oilData.map(d => d.p92);
+  const max = Math.max(...prices);
+  const min = Math.min(...prices);
+  const avg = (prices.reduce((a,b) => a+b, 0) / prices.length).toFixed(2);
+  const maxP = oilData.find(d => d.p92 === max);
+  const minP = oilData.find(d => d.p92 === min);
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-item">
+      <div class="stat-value high">${max.toFixed(2)}</div>
+      <div class="stat-label">最高（${maxP.province}）</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value low">${min.toFixed(2)}</div>
+      <div class="stat-label">最低（${minP.province}）</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">${avg}</div>
+      <div class="stat-label">全国均价</div>
+    </div>
+  `;
+}
+
+function renderOtherFuels() {
+  const data = oilData.find(d => d.province === selectedCity);
+  if (!data) return;
+  const fuels = [
+    { type: "95号汽油", price: data.p95 },
+    { type: "98号汽油", price: data.p98 },
+    { type: "0号柴油", price: data.d0 },
+  ];
+  document.getElementById('otherFuels').innerHTML = fuels.map(f => `
+    <div class="other-fuel-card">
+      <div class="other-fuel-type">${f.type}</div>
+      <div class="other-fuel-price">${f.price.toFixed(2)}</div>
+      <div class="other-fuel-unit">元/升</div>
+    </div>
+  `).join('');
+}
+
+function renderProvinceList(filter = '') {
+  let list = oilData;
+  if (filter) {
+    const mappedProvince = cityMap[filter];
+    list = list.filter(d =>
+      d.province.includes(filter) || d.region.includes(filter) ||
+      (mappedProvince && d.province === mappedProvince) ||
+      Object.entries(cityMap).some(([city, prov]) => city.includes(filter) && d.province === prov)
+    );
+  }
+  if (sortAsc) {
+    list = [...list].sort((a,b) => a.p92 - b.p92);
+  } else {
+    list = [...list].sort((a,b) => b.p92 - a.p92);
+  }
+
+  document.getElementById('provinceList').innerHTML = list.map(d => {
+    const cities = Object.entries(cityMap).filter(([,p]) => p === d.province).map(([c]) => c);
+    const cityLabel = cities.length ? cities.join('、') : '';
+    const subText = cityLabel ? `${cityLabel} · 95号 ${d.p95.toFixed(2)} · 0号 ${d.d0.toFixed(2)}` : `${d.region} · 95号 ${d.p95.toFixed(2)} · 0号 ${d.d0.toFixed(2)}`;
+    return `
+    <div class="province-item ${d.province === selectedCity ? 'active' : ''}" 
+         data-province="${d.province}" onclick="selectCity('${d.province}')">
+      <div>
+        <div class="province-name">${d.province}</div>
+        <div class="province-name-sub">${subText}</div>
+      </div>
+      <div class="province-price">
+        <div class="province-price-92">${d.p92.toFixed(2)}</div>
+        <div class="province-price-unit">元/升</div>
+        <div class="province-price-change up">↑ +${d.change.toFixed(2)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterProvinces() {
+  const val = document.getElementById('searchInput').value.trim();
+  renderProvinceList(val);
+}
+
+function toggleSort() {
+  sortAsc = !sortAsc;
+  document.getElementById('sortBtn').textContent = `按价格排序 ${sortAsc ? '↑' : '↓'}`;
+  const val = document.getElementById('searchInput').value.trim();
+  renderProvinceList(val);
+}
+
+function selectFuel(el) {
+  selectedFuel = el.dataset.fuel;
+  el.parentElement.querySelectorAll('.city-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  updateCalc();
+}
+
+function updateCalc() {
+  const slider = document.getElementById('literSlider');
+  const liters = parseInt(slider.value);
+  slider.style.setProperty('--val', ((liters - 10) / 70 * 100) + '%');
+  document.getElementById('literDisplay').textContent = liters + 'L';
+
+  const data = oilData.find(d => d.province === selectedCity);
+  if (!data) return;
+  let price = data.p92;
+  if (selectedFuel === '95') price = data.p95;
+  else if (selectedFuel === '98') price = data.p98;
+  else if (selectedFuel === '0d') price = data.d0;
+
+  const total = (price * liters).toFixed(2);
+  document.getElementById('calcResult').textContent = total;
+}
+
+function updateCountdown() {
+  const target = new Date('2026-07-31T24:00:00+08:00');
+  const now = new Date();
+  let diff = target - now;
+  if (diff < 0) diff = 0;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+  document.getElementById('countdown').innerHTML = `
+    <div class="countdown-item">
+      <div class="countdown-num">${days}</div>
+      <div class="countdown-text">天</div>
+    </div>
+    <div class="countdown-item">
+      <div class="countdown-num">${String(hours).padStart(2,'0')}</div>
+      <div class="countdown-text">时</div>
+    </div>
+    <div class="countdown-item">
+      <div class="countdown-num">${String(mins).padStart(2,'0')}</div>
+      <div class="countdown-text">分</div>
+    </div>
+    <div class="countdown-item">
+      <div class="countdown-num">${String(secs).padStart(2,'0')}</div>
+      <div class="countdown-text">秒</div>
+    </div>
+  `;
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1500);
+}
+
+init();
+</script>
+</body>
+</html>
