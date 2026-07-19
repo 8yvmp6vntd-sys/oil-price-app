@@ -716,6 +716,65 @@
     animation: fadeInUp 0.4s ease-out forwards;
   }
 
+
+  /* Chart Section */
+  .chart-section {
+    padding: 0 20px 20px;
+  }
+  .chart-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px 16px 16px;
+    box-shadow: var(--shadow);
+  }
+  .chart-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chart-canvas-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -4px;
+  }
+  .chart-canvas-wrap::-webkit-scrollbar { height: 0; }
+  #priceChart {
+    display: block;
+    width: 100%;
+    min-width: 560px;
+    height: 220px;
+  }
+  .chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .chart-legend span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .legend-line {
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .chart-note {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    opacity: 0.7;
+  }
+
 </style>
 </head>
 <body>
@@ -821,6 +880,22 @@
     <div class="list-sort" id="sortBtn" onclick="toggleSort()">按价格排序 ↑</div>
   </div>
   <div id="provinceList"></div>
+</div>
+
+
+<!-- Price Trend Chart -->
+<div class="chart-section animate-in delay-3">
+  <div class="chart-card">
+    <div class="chart-title">📈 2026年油价走势（92号汽油）</div>
+    <div class="chart-canvas-wrap">
+      <canvas id="priceChart"></canvas>
+    </div>
+    <div class="chart-legend">
+      <span><i class="legend-line" style="background:var(--primary)"></i>价格走势</span>
+      <span><i class="legend-line" style="background:var(--danger);height:2px;border-top:2px dashed var(--danger);background:transparent"></i>涨跌标记</span>
+    </div>
+    <div class="chart-note">* 3-5月部分调整金额为估算值，以国家发改委公告为准</div>
+  </div>
 </div>
 
 <!-- Tips -->
@@ -1098,6 +1173,144 @@ function showToast(msg) {
 }
 
 init();
+
+
+// === Price Chart ===
+function drawPriceChart() {
+  const canvas = document.getElementById('priceChart');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  const data = [{"date": "01-06", "label": "1月6日", "price": 6.99, "change": 0.0, "dir": "搁浅"}, {"date": "01-20", "label": "1月20日", "price": 7.05, "change": 0.06, "dir": "涨"}, {"date": "02-03", "label": "2月3日", "price": 7.2, "change": 0.15, "dir": "涨"}, {"date": "02-24", "label": "2月24日", "price": 7.33, "change": 0.13, "dir": "涨"}, {"date": "03-09", "label": "3月9日", "price": 7.83, "change": 0.5, "dir": "涨"}, {"date": "03-23", "label": "3月23日", "price": 7.96, "change": 0.13, "dir": "涨"}, {"date": "04-07", "label": "4月7日", "price": 8.08, "change": 0.12, "dir": "涨"}, {"date": "04-21", "label": "4月21日", "price": 8.17, "change": 0.09, "dir": "涨"}, {"date": "05-08", "label": "5月8日", "price": 8.1, "change": -0.07, "dir": "跌"}, {"date": "05-21", "label": "5月21日", "price": 8.26, "change": 0.16, "dir": "涨"}, {"date": "06-04", "label": "6月4日", "price": 7.88, "change": -0.38, "dir": "跌"}, {"date": "06-18", "label": "6月18日", "price": 7.51, "change": -0.37, "dir": "跌"}, {"date": "07-03", "label": "7月3日", "price": 6.82, "change": -0.69, "dir": "跌"}, {"date": "07-17", "label": "7月17日", "price": 7.04, "change": 0.22, "dir": "涨"}];
+  const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#E8453C';
+  const danger = getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#EF4444';
+  const success = getComputedStyle(document.documentElement).getPropertyValue('--success').trim() || '#10B981';
+  const text = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#1A1A2E';
+  const textSec = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#6B7280';
+  const border = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#E5E7EB';
+
+  const padL = 36, padR = 12, padT = 12, padB = 36;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+
+  const prices = data.map(d => d.price);
+  const minP = Math.floor(Math.min(...prices) * 10 - 3) / 10;
+  const maxP = Math.ceil(Math.max(...prices) * 10 + 3) / 10;
+  const range = maxP - minP || 1;
+
+  function xPos(i) { return padL + (i / (data.length - 1)) * chartW; }
+  function yPos(v) { return padT + chartH - ((v - minP) / range) * chartH; }
+
+  // Grid lines
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 0.5;
+  const gridSteps = 5;
+  for (let i = 0; i <= gridSteps; i++) {
+    const v = minP + (range / gridSteps) * i;
+    const y = yPos(v);
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+    ctx.fillStyle = textSec;
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(v.toFixed(2), padL - 5, y);
+  }
+
+  // Area fill
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(data[0].price));
+  for (let i = 1; i < data.length; i++) {
+    const x0 = xPos(i-1), y0 = yPos(data[i-1].price);
+    const x1 = xPos(i), y1 = yPos(data[i].price);
+    const cx = (x0 + x1) / 2;
+    ctx.bezierCurveTo(cx, y0, cx, y1, x1, y1);
+  }
+  ctx.lineTo(xPos(data.length-1), padT + chartH);
+  ctx.lineTo(xPos(0), padT + chartH);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, padT, 0, padT + chartH);
+  grad.addColorStop(0, primary + '30');
+  grad.addColorStop(1, primary + '05');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(data[0].price));
+  for (let i = 1; i < data.length; i++) {
+    const x0 = xPos(i-1), y0 = yPos(data[i-1].price);
+    const x1 = xPos(i), y1 = yPos(data[i].price);
+    const cx = (x0 + x1) / 2;
+    ctx.bezierCurveTo(cx, y0, cx, y1, x1, y1);
+  }
+  ctx.strokeStyle = primary;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Points and labels
+  for (let i = 0; i < data.length; i++) {
+    const d = data[i];
+    const x = xPos(i), y = yPos(d.price);
+    
+    // Point
+    ctx.beginPath();
+    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = d.dir === '涨' ? danger : d.dir === '跌' ? success : textSec;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Price label on top
+    ctx.fillStyle = text;
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(d.price.toFixed(2), x, y - 7);
+
+    // Change badge
+    if (d.change !== 0) {
+      const sign = d.change > 0 ? '+' : '';
+      const color = d.change > 0 ? danger : success;
+      ctx.fillStyle = color;
+      ctx.font = '8px sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.fillText(sign + d.change.toFixed(2), x, y + 7);
+    }
+
+    // X axis label (show every other)
+    if (i % 2 === 0 || i === data.length - 1) {
+      ctx.fillStyle = textSec;
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(d.label, x, padT + chartH + 6);
+    }
+  }
+}
+
+// Draw chart on load and theme change
+const origApplyTheme = typeof applyTheme === 'function' ? applyTheme : null;
+drawPriceChart();
+window.addEventListener('resize', drawPriceChart);
+// Override applyTheme to also redraw chart
+if (origApplyTheme) {
+  const _orig = applyTheme;
+  applyTheme = function(idx) {
+    _orig(idx);
+    setTimeout(drawPriceChart, 50);
+  };
+}
 
 // === Skin System ===
 const SKIN_PWD = 'oil2026';
